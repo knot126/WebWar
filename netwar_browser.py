@@ -63,7 +63,7 @@ class HTMLModifier(HTMLParser):
 	def handle_starttag(self, tag, attrs):
 		attrs = dict(attrs)
 		
-		for T in ["src", "altsrc", "href"]:
+		for T in ["src", "action", "href"]:
 			if (T in attrs):
 				attrs[T] = toAbsolutePath(self.host, self.url, attrs[T])
 		
