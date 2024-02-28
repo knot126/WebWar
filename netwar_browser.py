@@ -33,7 +33,7 @@ def dictToHtmlTags(d):
 	o = ""
 	
 	for k in d:
-		if (d[k]):
+		if (d[k] != None):
 			o += f"{k}=\""
 			o += d[k].replace("\"", "&quot;").replace("&", "&amp;")
 			o += "\" "
