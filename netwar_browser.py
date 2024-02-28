@@ -33,9 +33,12 @@ def dictToHtmlTags(d):
 	o = ""
 	
 	for k in d:
-		o += f"{k}=\""
-		o += d[k].replace("\"", "&quot;").replace("&", "&amp;")
-		o += "\" "
+		if (d[k]):
+			o += f"{k}=\""
+			o += d[k].replace("\"", "&quot;").replace("&", "&amp;")
+			o += "\" "
+		else:
+			o += f"{k}"
 	
 	return o[:-1]
 
@@ -60,7 +63,7 @@ class HTMLModifier(HTMLParser):
 	def handle_starttag(self, tag, attrs):
 		attrs = dict(attrs)
 		
-		for T in ["src", "href"]:
+		for T in ["src", "altsrc", "href"]:
 			if (T in attrs):
 				attrs[T] = toAbsolutePath(self.host, self.url, attrs[T])
 		
@@ -84,7 +87,7 @@ class MyServer(BaseHTTPRequestHandler):
 			data = Path(f"{ARCHIVE_DIR}/{getHost(url)}/{content_hash}").read_bytes()
 			headers = parseHeaders(Path(f"{ARCHIVE_DIR}/{getHost(url)}/{header_hash}").read_bytes())
 			
-			if (b"<html" in data):
+			if ("text/html" in headers["Content-Type"]):
 				hp = HTMLModifier(m, url, self.headers["host"])
 				hp.feed(data.decode())
 				data = hp.out
