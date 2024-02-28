@@ -60,8 +60,9 @@ class HTMLModifier(HTMLParser):
 	def handle_starttag(self, tag, attrs):
 		attrs = dict(attrs)
 		
-		if ("src" in attrs):
-			attrs["src"] = toAbsolutePath(self.host, self.url, attrs["src"])
+		for T in ["src", "href"]:
+			if (T in attrs):
+				attrs[T] = toAbsolutePath(self.host, self.url, attrs[T])
 		
 		self.out += f"<{tag} {dictToHtmlTags(attrs)}>"
 	
