@@ -12,7 +12,7 @@ import time
 from mitmproxy import http
 
 DB = "/home/dragon/Development/Scripts/archive"
-SAVE_HEADERS = False
+SAVE_HEADERS = True
 
 def __quote(s):
 	return '"' + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + '"'
