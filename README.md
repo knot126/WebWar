@@ -1,6 +1,6 @@
 # WebWar Archiver
 
-Proof of concept web archival tool which uses proxies to save data from many domains. Since it relies on the browser and the user's interaction with it, some data can be saved that would not be saved with a normal crawler or single-site "proxy".
+WebWar is a proof of concept web archival tool which saves all data that flows through an HTTP proxy.
 
 Right now I'm just cheap and using mitmproxy for the heavy lifting. B3
 
