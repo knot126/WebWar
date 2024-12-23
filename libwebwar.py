@@ -42,6 +42,13 @@ class ArchiveAssetManager:
 		os.makedirs(p.parent, exist_ok=True)
 		p.write_bytes(bytes(content, 'utf-8') if type(content) == str else content)
 	
+	def listdir(self, path):
+		"""
+		List the contents of a directory
+		"""
+		
+		return os.listdir(f"{self.path}/{path}")
+	
 	@staticmethod
 	def may_match(path):
 		"""
@@ -66,6 +73,14 @@ class ZipArchiveAssetManager:
 	
 	def write(self, path, content):
 		self.z.writestr(path, content)
+	
+	def listdir(self, path):
+		items = []
+		
+		for p in zipfile.Path(self.z, path).iterdir():
+			items.append(p.name)
+		
+		return items
 	
 	@staticmethod
 	def may_match(path):
@@ -101,3 +116,5 @@ class Archive:
 	def write(self, path, content):
 		self.asset_manager.write(path, content)
 	
+	def listdir(self, path):
+		return self.asset_manager.listdir(path)

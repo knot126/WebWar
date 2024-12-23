@@ -9,6 +9,10 @@ from email.parser import BytesParser
 import argparse
 import libwebwar
 import re
+from datetime import datetime
+
+def formatTime(time):
+	return datetime.utcfromtimestamp(time).strftime("%Y-%m-%d %H:%M:%S")
 
 def getNoProto(url):
 	return url.replace("https://", "").replace("http://", "").replace("://", "").replace("//", "")
@@ -107,6 +111,12 @@ class MyServer(BaseHTTPRequestHandler):
 			if self.path == "/favicon.ico":
 				url = getHost(self.headers["Referer"].removeprefix(f"http://{self.headers['Host']}/")) + "/favicon.ico"
 			
+			if self.path == "/":
+				return self.domain_list()
+			
+			if self.path.startswith("/__pagelist__/"):
+				return self.page_list(self.path.removeprefix("/__pagelist__/"))
+			
 			m = json.loads(archive.read(f"{getHost(url)}/map.json"))
 			
 			content_hash, header_hash = getClosestHashFromMap(m, url)
@@ -133,6 +143,28 @@ class MyServer(BaseHTTPRequestHandler):
 			data = traceback.format_exc()
 			
 			self.respond(500, "text/html", f"<h1>Oops!</h1><p>WebWar hit an error!</p><pre>{data}</pre>")
+	
+	def domain_list(self):
+		archive = self.__class__.archive
+		data = "<h1>List of domains</h1><ul>"
+		
+		for name in archive.listdir(""):
+			data += f'<li><a href="http://{self.headers["Host"]}/{name}">{name}</a> (<a href="http://{self.headers["Host"]}/__pagelist__/{name}">page list</a>)</li>'
+		
+		data += "</ul>"
+		
+		self.respond(200, "text/html", data)
+	
+	def page_list(self, domain):
+		archive = self.__class__.archive
+		data = f"<h1>List of pages for {domain}</h1><ul>"
+		
+		for entry in json.loads(archive.read(f"{domain}/map.json")):
+			data += f'<li><a href="http://{self.headers["Host"]}/{entry["url"]}">{entry["url"]}</a> ({formatTime(entry["time"])})</li>'
+		
+		data += "</ul>"
+		
+		self.respond(200, "text/html", data)
 	
 	def respond(self, status = 200, content_type = None, data = b"", headers = None):
 		headers = headers or {}
