@@ -11,7 +11,7 @@ import json
 import time
 from mitmproxy import http
 
-DB = "/home/dragon/Development/Scripts/archive"
+DB = "/home/dragon/Archive/web/WebWar"
 SAVE_HEADERS = True
 
 def __quote(s):

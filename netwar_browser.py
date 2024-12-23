@@ -1,11 +1,14 @@
+#!/usr/bin/env python3
+
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from html.parser import HTMLParser
 from pathlib import Path
 import json
 import traceback
 from email.parser import BytesParser
-
-ARCHIVE_DIR = "/home/dragon/Development/Scripts/archive"
+import argparse
+import libwebwar
+import re
 
 def getNoProto(url):
 	return url.replace("https://", "").replace("http://", "").replace("://", "").replace("//", "")
@@ -17,11 +20,19 @@ def getPath(url):
 	url = getNoProto(url)
 	return url[url.index("/"):]
 
+def getFuzzyPath(url):
+	url = getNoProto(url).lower().removeprefix("www.").removesuffix("/")
+	
+	return url
+
+def matchFuzzyPath(url1, url2):
+	return getFuzzyPath(url1) == getFuzzyPath(url2)
+
 def getClosestHashFromMap(m, url):
 	url = getNoProto(url)
 	
 	for x in m:
-		if (getNoProto(x["url"]) == url):
+		if matchFuzzyPath(x["url"], url):
 			return x["content"], x["headers"]
 	
 	return None
@@ -48,6 +59,8 @@ def toAbsolutePath(host, base_url, url):
 		return f"http://{host}/{getNoProto(url)}"
 	elif (url.startswith("/")):
 		return f"http://{host}/{getHost(base_url)}{url}"
+	elif (url.startswith("data:")):
+		return url
 	else:
 		# TODO
 		return f"http://{host}/{base_url}/{url}"
@@ -75,22 +88,38 @@ class HTMLModifier(HTMLParser):
 	def handle_data(self, data):
 		self.out += data
 
+def fixupCss(css, host, base_url):
+	results = re.findall(r"url\([^\)]+\)", css)
+	
+	for r in results:
+		r = r[4:-1]
+		css = css.replace(f"url({r})", f"url({toAbsolutePath(host, base_url, r)})")
+	
+	return css
+
 class MyServer(BaseHTTPRequestHandler):
+	# Kind of a hack to keep it as a static variable
+	archive = None
+	
 	def do_GET(self):
 		try:
 			url = self.path[1:]
+			archive = self.__class__.archive
 			
-			m = json.loads(Path(f"{ARCHIVE_DIR}/{getHost(url)}/map.json").read_text())
+			m = json.loads(archive.read(f"{getHost(url)}/map.json"))
 			
 			content_hash, header_hash = getClosestHashFromMap(m, url)
 			
-			data = Path(f"{ARCHIVE_DIR}/{getHost(url)}/{content_hash}").read_bytes()
-			headers = parseHeaders(Path(f"{ARCHIVE_DIR}/{getHost(url)}/{header_hash}").read_bytes())
+			data = archive.read(f"{getHost(url)}/{content_hash}")
+			headers = parseHeaders(archive.read(f"{getHost(url)}/{header_hash}"))
 			
 			if ("text/html" in headers["Content-Type"]):
 				hp = HTMLModifier(m, url, self.headers["host"])
 				hp.feed(data.decode())
 				data = hp.out
+			
+			if ("text/css" in headers["Content-Type"]):
+				data = fixupCss(data.decode(), self.headers["host"], url)
 			
 			self.send_response(200)
 			self.send_header("Content-Type", headers["Content-Type"])
@@ -106,13 +135,22 @@ class MyServer(BaseHTTPRequestHandler):
 			self.end_headers()
 			self.wfile.write(data)
 
-if __name__ == "__main__":		
+if __name__ == "__main__":
+	args = argparse.ArgumentParser(
+		prog="netwar_browser",
+		description="Browse NetWar archives",
+	)
+	args.add_argument("archive", help="Path to the folder or ZIP of the archive to browse")
+	args = args.parse_args()
+	
+	MyServer.archive = libwebwar.Archive(args.archive, True)
+	print(MyServer.archive)
 	webServer = HTTPServer(("0.0.0.0", 8000), MyServer)
-
+	
 	try:
 		webServer.serve_forever()
 	except KeyboardInterrupt:
 		pass
-
+	
 	webServer.server_close()
 	print("Server stopped.")
