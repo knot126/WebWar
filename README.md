@@ -23,7 +23,7 @@ Note that you need to get the page name exactly right (ex `www.furaffinity.net` 
 
 ## Format
 
-The archive "database" is a simple content addressed storage system, sorted per domain, with a `map.json` file mapping URIs and time of archival to content and headers.
+The archive "database" is a simple content addressed storage system, sorted per domain, with a `map.json` file mapping URIs and time of archival to content and headers. Content files are named after the hex of their SHA-256 hash and stored in the domain folder - that is, alongside the `map.json`.
 
 ### `map.json`
 
@@ -49,3 +49,8 @@ The archive "database" is a simple content addressed storage system, sorted per 
 		/0efb0ab6e3a4e54c1a3ed2633c8a542125a9945498ae491dfb5d15d9648342d1
 		/map.json
 ```
+
+### Notes
+
+* For portability, archives can be compressed into a ZIP file. Domain folders should be stored directly at the root of the archive, and the resulting ZIP file should retain a `.zip` file extension.
+* One major pillar of this design is that most of the formats should be easy to understand and based on widely known standards, so that even if this spec document were lost, it would be easy to get content out of the archive files. After all, an archive is useless if it can't be understood!
