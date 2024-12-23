@@ -29,13 +29,11 @@ def matchFuzzyPath(url1, url2):
 	return getFuzzyPath(url1) == getFuzzyPath(url2)
 
 def getClosestHashFromMap(m, url):
-	url = getNoProto(url)
-	
 	for x in m:
 		if matchFuzzyPath(x["url"], url):
-			return x["content"], x["headers"]
+			return x["content"], x.get("headers", None)
 	
-	return None
+	return None, None
 
 def parseHeaders(h):
 	return BytesParser().parsebytes(h)
@@ -106,9 +104,18 @@ class MyServer(BaseHTTPRequestHandler):
 			url = self.path[1:]
 			archive = self.__class__.archive
 			
+			if self.path == "/favicon.ico":
+				url = getHost(self.headers["Referer"].removeprefix(f"http://{self.headers['Host']}/")) + "/favicon.ico"
+			
 			m = json.loads(archive.read(f"{getHost(url)}/map.json"))
 			
 			content_hash, header_hash = getClosestHashFromMap(m, url)
+			
+			if not content_hash:
+				return self.respond(404, "text/html", "<h1>Oh no!</h1><p>It seems like this page wasn't archived.</p>")
+			
+			if not header_hash:
+				return self.respond(404, "text/html", "<h1>Oh no!</h1><p>This page was archived, but the header information required to reconstruct the response is not present.</p>")
 			
 			data = archive.read(f"{getHost(url)}/{content_hash}")
 			headers = parseHeaders(archive.read(f"{getHost(url)}/{header_hash}"))
@@ -121,19 +128,26 @@ class MyServer(BaseHTTPRequestHandler):
 			if ("text/css" in headers["Content-Type"]):
 				data = fixupCss(data.decode(), self.headers["host"], url)
 			
-			self.send_response(200)
-			self.send_header("Content-Type", headers["Content-Type"])
-			self.send_header("Content-Length", str(len(data)))
-			self.end_headers()
-			self.wfile.write(data if type(data) == bytes else data.encode())
+			self.respond(200, headers["Content-Type"], data)
 		except:
-			data = traceback.format_exc().encode()
+			data = traceback.format_exc()
 			
-			self.send_response(400)
-			self.send_header("Content-Type", "text/plain")
-			self.send_header("Content-Length", str(len(data)))
-			self.end_headers()
-			self.wfile.write(data)
+			self.respond(500, "text/html", f"<h1>Oops!</h1><p>WebWar hit an error!</p><pre>{data}</pre>")
+	
+	def respond(self, status = 200, content_type = None, data = b"", headers = None):
+		headers = headers or {}
+		headers["Content-Length"] = str(len(data))
+		
+		if "Content-Type" not in headers:
+			headers["Content-Type"] = content_type or "text/html"
+		
+		self.send_response(status)
+		
+		for k, v in headers.items():
+			self.send_header(k, v)
+		
+		self.end_headers()
+		self.wfile.write(data if type(data) == bytes else data.encode())
 
 if __name__ == "__main__":
 	args = argparse.ArgumentParser(
